@@ -1,0 +1,5 @@
+.vscode/
+.info
+debug*
+CoinbaseClient_test.go
+.travis.yml
