@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,8 +63,11 @@ func (coinbaseClient *CoinbaseClient) query(typ interface{}, reqMeth string, rou
 
 	// build request
 	var reader io.Reader
+	var encodedValues string
 	if values != nil {
-		reader = strings.NewReader(values.Encode())
+		encodedValues = values.Encode()
+		log.Println(encodedValues)
+		reader = strings.NewReader(encodedValues)
 	}
 	request, err := http.NewRequest(reqMeth, httpURL, reader)
 	if err != nil {
@@ -74,11 +78,10 @@ func (coinbaseClient *CoinbaseClient) query(typ interface{}, reqMeth string, rou
 	path := html.EscapeString(request.URL.Path)
 	timestamp := fmt.Sprintf("%d", time.Now().UTC().Unix())
 
-	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("CB-VERSION", "2017-09-13")
 	request.Header.Set("CB-ACCESS-KEY", coinbaseClient.AccessKey)
 	request.Header.Set("CB-ACCESS-TIMESTAMP", timestamp)
-	request.Header.Set("CB-ACCESS-SIGN", coinbaseClient.sign(timestamp, request.Method, path, ""))
+	request.Header.Set("CB-ACCESS-SIGN", coinbaseClient.sign(timestamp, request.Method, path, encodedValues))
 
 	// fire up request and unmarshal serverTime
 	err = HTTPDo(httpContext, request, func(response *http.Response, err error) error {
@@ -86,6 +89,9 @@ func (coinbaseClient *CoinbaseClient) query(typ interface{}, reqMeth string, rou
 			return err
 		}
 		defer response.Body.Close()
+
+		// bodyBytes, err := ioutil.ReadAll(response.Body)
+		// log.Println(string(bodyBytes))
 
 		decoder := json.NewDecoder(response.Body)
 		if err := decoder.Decode(&coinbaseResponse); err != nil {
